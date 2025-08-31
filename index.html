@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Language Document Summarization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.17/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Open+Sans:wght@300;400;600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: #05DEED; /* Blue background */
+            color: #000000; /* Black text */
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #FFFFFF; /* White container */
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            border: 2px solid #05DEED; /* Blue border */
+        }
+        
+        header {
+            background: linear-gradient(90deg, #05DEED, #05DEED);
+            color: #000000; /* Black text */
+            padding: 25px;
+            text-align: center;
+            border-bottom: 2px solid #05DEED;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-family: 'Roboto', sans-serif;
+            font-weight: 300;
+        }
+        
+        .subtitle {
+            font-size: 1.5rem;
+            opacity: 1.3;
+            font-weight: 300;
+        }
+        
+        .language-selector {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+        
+        .lang-btn {
+            background: #05DEED;
+            color: #000;
+            border: 1px solid #000;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 5px;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        .lang-btn.active {
+            background: #05DEED;
+            color: #FFF;
+        }
+        
+        .lang-btn:hover {
+            background: #04C6D4;
+        }
+        
+        .font-selector {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+        
+        .font-selector select {
+            background: #FFFFFF;
+            border: 1px solid #000;
+            padding: 5px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .main-content {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 20px;
+            gap: 20px;
+        }
+        
+        .upload-section {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+            background: #F9F9F9;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid #05DEED;
+        }
+        
+        .section-title {
+            font-family: 'Roboto', sans-serif;
+            font-weight: 300;
+            color: #000000;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+        
+        .results-section {
+            flex: 2;
+            min-width: 500px;
+            padding: 20px;
+            background: #F9F9F9;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid #05DEED;
+        }
+        
+        .drop-area {
+            border: 3px dashed #05DEED;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+            background: #F0F8F1;
+        }
+        
+        .drop-area:hover {
+            background: #E5F4E7;
+            border-color: #04C6D4;
+        }
+        
+        .drop-area i {
+            font-size: 3rem;
+            color: #05DEED;
+            margin-bottom: 15px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
+            background: #FFFFFF;
+            color: #000000;
+            border: 2px solid #05DEED;
+            padding: 12px 25px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-block;
+            margin-top: 15px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(5, 222, 237, 0.3);
+            background: #05DEED;
+            color: #000;
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .summary-card {
+            background: #FFFFFF;
+            border-left: 5px solid #05DEED;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        
+        .summary-card h3 {
+            color: #05DEED;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            font-family: 'Roboto', sans-serif;
+            font-weight: 300;
+        }
+        
+        .file-type {
+            background: #FFFFFF;
+            color: #000;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            border: 1px solid #05DEED;
+        }
+        
+        .summary-content {
+            line-height: 1.6;
+            color: #333;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            margin-bottom: 15px;
+        }
+        
+        .file-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+        
+        .rename-input {
+            padding: 8px;
+            border: 1px solid #05DEED;
+            border-radius: 4px;
+            width: 60%;
+        }
+        
+        .action-btn {
+            background: #05DEED;
+            color: #000;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .action-btn:hover {
+            background: #04C6D4;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: #E0E0E0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, #05DEED, #04C6D4);
+            width: 0%;
+            transition: width 0.4s;
+        }
+        
+        .status {
+            text-align: center;
+            font-size: 1.3rem;
+            color: #000000;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        
+        .file-list {
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #E0E0E0;
+            color: #333;
+        }
+        
+        .file-item:last-child {
+            border-bottom: none;
+        }
+        
+        .font-light {
+            font-weight: 300;
+        }
+        
+        .font-regular {
+            font-weight: 400;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .upload-section, .results-section {
+                min-width: 100%;
+            }
+            
+            .language-selector {
+                position: static;
+                text-align: center;
+                margin-bottom: 15px;
+            }
+            
+            .font-selector {
+                position: static;
+                text-align: center;
+                margin-bottom: 15px;
+                background: transparent;
+            }
+            
+            .file-actions {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .rename-input {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="language-selector">
+                <button class="lang-btn active" id="langEn">EN</button>
+                <button class="lang-btn" id="langRu">RU</button>
+            </div>
+            <div class="font-selector">
+                <select id="fontSelector">
+                    <option value="roboto-light">Roboto Light</option>
+                    <option value="open-sans">Open Sans</option>
+                    <option value="lato">Lato Light</option>
+                    <option value="segoe">Segoe UI</option>
+                </select>
+            </div>
+            <h1 id="headerTitle">Old Files ?!</h1>
+            <p class="subtitle" id="headerSubtitle">Upload multiple files and get instant summaries without opening them</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="upload-section">
+                <h2 id="uploadTitle" class="section-title">Upload Documents</h2>
+                <div class="drop-area" id="dropArea">
+                    <i>📁</i>
+                    <p id="dropText">Drag & drop files here<br>or</p>
+                    <button class="btn" id="selectButton">Select Files</button>
+                    <input type="file" id="fileInput" class="file-input" multiple accept=".pdf,.docx,.xlsx,.xls,.txt,.rtf">
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress" id="progressBar"></div>
+                </div>
+                <div class="status" id="status">Ready to process files</div>
+                
+                <div class="file-list" id="fileList">
+                    <!-- File list will be generated here -->
+                </div>
+            </div>
+            
+            <div class="results-section">
+                <h2 id="resultsTitle" class="section-title">Document Summaries</h2>
+                <div id="resultsContainer">
+                    <div class="summary-card">
+                        <h3 id="welcomeTitle">Welcome <span class="file-type">INFO</span></h3>
+                        <div class="summary-content">
+                            <p id="welcomeText1">This tool helps you quickly understand the content of multiple documents without opening each one.</p>
+                            <p id="welcomeText2">Supported formats: PDF, DOCX, XLSX, XLS, TXT, RTF</p>
+                            <p id="welcomeText3">Simply upload your files to get started. The content will be processed directly in your browser.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+
+        // Language texts
+        const texts = {
+            en: {
+                title: "Old Files ?!",
+                subtitle: "Upload multiple files and get instant summaries without opening them",
+                upload: "Upload Documents",
+                drop: "Drag & drop files here<br>or",
+                select: "Select Files",
+                statusReady: "Ready to process files",
+                results: "Document Summaries",
+                welcome: "Welcome",
+                welcome1: "This tool helps you quickly understand the content of multiple documents without opening each one.",
+                welcome2: "Supported formats: PDF, DOCX, XLSX, XLS, TXT, RTF",
+                welcome3: "Simply upload your files to get started. The content will be processed directly in your browser.",
+                processing: "Processing files...",
+                complete: "Processed successfully!",
+                error: "Error processing file",
+                rename: "Rename",
+                download: "Download",
+                newName: "New name"
+            },
+            ru: {
+                title: "Старые файлы ?!",
+                subtitle: "Загрузите несколько файлов и получите краткое описание без их открытия",
+                upload: "Загрузка документов",
+                drop: "Перетащите файлы сюда<br>или",
+                select: "Выбрать файлы",
+                statusReady: "Готов к обработке файлов",
+                results: "Краткое описание файла", // Fixed as requested
+                welcome: "Добро пожаловать",
+                welcome1: "Этот инструмент помогает быстро понять содержание нескольких документов без их открытия.",
+                welcome2: "Поддерживаемые форматы: PDF, DOCX, XLSX, XLS, TXT, RTF",
+                welcome3: "Просто загрузите ваши файлы, чтобы начать. Содержание будет обработано прямо в вашем браузере.",
+                processing: "Обработка файлов...",
+                complete: "Успешно обработаны!",
+                error: "Ошибка при обработке файла",
+                rename: "Переименовать",
+                download: "Скачать",
+                newName: "Новое имя"
+            }
+        };
+
+        let currentLang = 'en';
+        let processedFiles = new Map(); // Store processed file data
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropArea = document.getElementById('dropArea');
+            const fileInput = document.getElementById('fileInput');
+            const fileList = document.getElementById('fileList');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const progressBar = document.getElementById('progressBar');
+            const status = document.getElementById('status');
+            const selectButton = document.getElementById('selectButton');
+            const langEnBtn = document.getElementById('langEn');
+            const langRuBtn = document.getElementById('langRu');
+            const fontSelector = document.getElementById('fontSelector');
+            
+            // Fix for file input - direct click handler
+            selectButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                fileInput.click();
+            });
+            
+            // Set up language switching
+            langEnBtn.addEventListener('click', () => switchLanguage('en'));
+            langRuBtn.addEventListener('click', () => switchLanguage('ru'));
+            
+            // Set up font switching
+            fontSelector.addEventListener('change', changeFont);
+            
+            function changeFont() {
+                const fontValue = fontSelector.value;
+                const headings = document.querySelectorAll('h1, h2, h3, .section-title');
+                
+                headings.forEach(heading => {
+                    heading.classList.remove('font-light', 'font-regular');
+                    
+                    switch(fontValue) {
+                        case 'roboto-light':
+                            heading.style.fontFamily = "'Roboto', sans-serif";
+                            heading.style.fontWeight = '300';
+                            break;
+                        case 'open-sans':
+                            heading.style.fontFamily = "'Open Sans', sans-serif";
+                            heading.style.fontWeight = '300';
+                            break;
+                        case 'lato':
+                            heading.style.fontFamily = "'Lato', sans-serif";
+                            heading.style.fontWeight = '300';
+                            break;
+                        case 'segoe':
+                            heading.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+                            heading.style.fontWeight = '400';
+                            break;
+                    }
+                });
+            }
+            
+            function switchLanguage(lang) {
+                currentLang = lang;
+                
+                // Update buttons
+                langEnBtn.classList.toggle('active', lang === 'en');
+                langRuBtn.classList.toggle('active', lang === 'ru');
+                
+                // Update interface texts
+                document.getElementById('headerTitle').textContent = texts[lang].title;
+                document.getElementById('headerSubtitle').textContent = texts[lang].subtitle;
+                document.getElementById('uploadTitle').textContent = texts[lang].upload;
+                document.getElementById('dropText').innerHTML = texts[lang].drop;
+                document.getElementById('selectButton').textContent = texts[lang].select;
+                document.getElementById('resultsTitle').textContent = texts[lang].results;
+                document.getElementById('welcomeTitle').textContent = texts[lang].welcome;
+                document.getElementById('welcomeText1').textContent = texts[lang].welcome1;
+                document.getElementById('welcomeText2').textContent = texts[lang].welcome2;
+                document.getElementById('welcomeText3').textContent = texts[lang].welcome3;
+                
+                // Update action buttons in summary cards
+                document.querySelectorAll('.rename-btn').forEach(btn => {
+                    btn.textContent = texts[lang].rename;
+                });
+                
+                document.querySelectorAll('.download-btn').forEach(btn => {
+                    btn.textContent = texts[lang].download;
+                });
+                
+                document.querySelectorAll('.rename-input').forEach(input => {
+                    input.placeholder = texts[lang].newName;
+                });
+                
+                if (status.textContent === 'Ready to process files' || status.textContent === 'Готов к обработке файлов') {
+                    status.textContent = texts[lang].statusReady;
+                }
+            }
+            
+            // Click on drop area to trigger file input
+            dropArea.addEventListener('click', (e) => {
+                // Only trigger file input if clicking directly on drop area, not on buttons inside
+                if (e.target === dropArea) {
+                    fileInput.click();
+                }
+            });
+            
+            // Prevent default drag behaviors
+            ['dragenter', 'dragoover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            // Highlight drop area when item is dragged over it
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+            
+            // Handle dropped files
+            dropArea.addEventListener('drop', handleDrop, false);
+            
+            // Handle selected files
+            fileInput.addEventListener('change', handleFiles, false);
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            function highlight() {
+                dropArea.style.backgroundColor = '#E5F4E7';
+                dropArea.style.borderColor = '#04C6D4';
+            }
+            
+            function unhighlight() {
+                dropArea.style.backgroundColor = '#F0F8F1';
+                dropArea.style.borderColor = '#05DEED';
+            }
+            
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles({target: {files: files}});
+            }
+            
+            function handleFiles(e) {
+                const files = e.target.files;
+                if (files.length > 0) {
+                    processFiles(files);
+                }
+            }
+            
+            function processFiles(files) {
+                // Clear previous results but keep welcome card if no files processed yet
+                if (processedFiles.size > 0) {
+                    resultsContainer.innerHTML = '';
+                }
+                fileList.innerHTML = '';
+                
+                // Update status
+                status.textContent = texts[currentLang].processing;
+                progressBar.style.width = '0%';
+                
+                let processed = 0;
+                
+                // Process each file
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const fileName = file.name;
+                    const fileExtension = fileName.split('.').pop().toLowerCase();
+                    
+                    // Add file to list
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <span>${fileName}</span>
+                        <span>${currentLang === 'en' ? 'Waiting...' : 'Ожидание...'}</span>
+                    `;
+                    fileList.appendChild(fileItem);
+                    
+                    // Process based on file type
+                    if (fileExtension === 'pdf') {
+                        processPDF(file, fileItem);
+                    } else if (fileExtension === 'docx') {
+                        processDOCX(file, fileItem);
+                    } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+                        processXLSX(file, fileItem);
+                    } else if (fileExtension === 'txt' || fileExtension === 'rtf') {
+                        processText(file, fileItem);
+                    } else {
+                        fileItem.innerHTML = `
+                            <span>${fileName}</span>
+                            <span style="color: red;">${currentLang === 'en' ? 'Unsupported format' : 'Неподдерживаемый формат'}</span>
+                        `;
+                        processed++;
+                        updateProgress(processed, files.length);
+                    }
+                    
+                    // After processing each file
+                    const processFile = (content, originalFile) => {
+                        const summary = generateSummary(content, fileName, fileExtension);
+                        displaySummary(summary, fileName, fileExtension, originalFile, content);
+                        
+                        fileItem.innerHTML = `
+                            <span>${fileName}</span>
+                            <span style="color: green;">${currentLang === 'en' ? 'Processed' : 'Обработано'}</span>
+                        `;
+                        
+                        processed++;
+                        updateProgress(processed, files.length);
+                        
+                        if (processed === files.length) {
+                            status.textContent = texts[currentLang].complete;
+                        }
+                    };
+                    
+                    // Define processing functions
+                    function processPDF(file, item) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const pdfData = new Uint8Array(e.target.result);
+                            
+                            // Load the PDF
+                            pdfjsLib.getDocument({data: pdfData}).promise.then(pdf => {
+                                let text = '';
+                                const numPages = pdf.numPages;
+                                
+                                // Extract text from each page
+                                const extractPage = (pageNum) => {
+                                    return pdf.getPage(pageNum).then(page => {
+                                        return page.getTextContent().then(textContent => {
+                                            return textContent.items.map(item => item.str).join(' ');
+                                        });
+                                    });
+                                };
+                                
+                                // Extract all pages
+                                const extractAllPages = () => {
+                                    const promises = [];
+                                    for (let i = 1; i <= numPages; i++) {
+                                        promises.push(extractPage(i));
+                                    }
+                                    return Promise.all(promises);
+                                };
+                                
+                                extractAllPages().then(pages => {
+                                    text = pages.join(' ');
+                                    processFile(text, file);
+                                });
+                            }).catch(error => {
+                                item.innerHTML = `
+                                    <span>${fileName}</span>
+                                    <span style="color: red;">${texts[currentLang].error}: ${error.message}</span>
+                                `;
+                                processed++;
+                                updateProgress(processed, files.length);
+                            });
+                        };
+                        reader.readAsArrayBuffer(file);
+                    }
+                    
+                    function processDOCX(file, item) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const arrayBuffer = e.target.result;
+                            
+                            mammoth.extractRawText({arrayBuffer: arrayBuffer})
+                                .then(result => {
+                                    processFile(result.value, file);
+                                })
+                                .catch(error => {
+                                    item.innerHTML = `
+                                        <span>${fileName}</span>
+                                        <span style="color: red;">${texts[currentLang].error}: ${error.message}</span>
+                                    `;
+                                    processed++;
+                                    updateProgress(processed, files.length);
+                                });
+                        };
+                        reader.readAsArrayBuffer(file);
+                    }
+                    
+                    function processXLSX(file, item) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, {type: 'array'});
+                            
+                            let content = '';
+                            
+                            // Process each sheet
+                            workbook.SheetNames.forEach(sheetName => {
+                                const worksheet = workbook.Sheets[sheetName];
+                                const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+                                
+                                content += `Sheet: ${sheetName}\n`;
+                                
+                                jsonData.forEach(row => {
+                                    content += row.join(' | ') + '\n';
+                                });
+                                
+                                content += '\n';
+                            });
+                            
+                            processFile(content, file);
+                        };
+                        reader.readAsArrayBuffer(file);
+                    }
+                    
+                    function processText(file, item) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            processFile(e.target.result, file);
+                        };
+                        reader.readAsText(file);
+                    }
+                }
+            }
+            
+            function updateProgress(processed, total) {
+                const percent = (processed / total) * 100;
+                progressBar.style.width = percent + '%';
+            }
+            
+            function generateSummary(content, fileName, fileType) {
+                // Simple summarization logic - in a real application, this would be more sophisticated
+                let summary = '';
+                
+                // Limit content length for processing
+                const limitedContent = content.length > 10000 ? content.substring(0, 10000) + '...' : content;
+                
+                if (fileType === 'pdf' || fileType === 'docx' || fileType === 'txt' || fileType === 'rtf') {
+                    // For text documents
+                    const sentences = limitedContent.split(/[.!?]+/);
+                    const importantSentences = sentences.filter(sentence => 
+                        sentence.length > 50 && 
+                        !sentence.toLowerCase().includes('copyright') &&
+                        !sentence.toLowerCase().includes('confidential')
+                    );
+                    
+                    summary = importantSentences.slice(0, 3).join('. ') + '.';
+                    
+                    if (summary.length < 100) {
+                        summary = limitedContent.substring(0, 300) + '...';
+                    }
+                } else if (fileType === 'xlsx' || fileType === 'xls') {
+                    // For spreadsheets
+                    const lines = limitedContent.split('\n');
+                    const dataLines = lines.filter(line => line.trim() !== '' && !line.startsWith('Sheet:'));
+                    
+                    summary = `Spreadsheet with ${dataLines.length} rows of data. `;
+                    
+                    if (dataLines.length > 0) {
+                        summary += `First row: ${dataLines[0]}. `;
+                    }
+                    
+                    if (dataLines.length > 1) {
+                        summary += `Last row: ${dataLines[dataLines.length - 1]}.`;
+                    }
+                }
+                
+                return summary || (currentLang === 'en' 
+                    ? "Could not generate summary for this file." 
+                    : "Не удалось создать сводку для этого файла.");
+            }
+            
+            function displaySummary(summary, fileName, fileType, originalFile, content) {
+                const summaryCard = document.createElement('div');
+                summaryCard.className = 'summary-card';
+                const fileId = Date.now() + Math.random().toString(36).substr(2, 9);
+                
+                // Store file data for download
+                processedFiles.set(fileId, {
+                    name: fileName,
+                    type: fileType,
+                    content: content,
+                    originalFile: originalFile
+                });
+                
+                summaryCard.innerHTML = `
+                    <h3>${fileName} <span class="file-type">${fileType.toUpperCase()}</span></h3>
+                    <div class="summary-content">
+                        <p>${summary}</p>
+                    </div>
+                    <div class="file-actions">
+                        <input type="text" class="rename-input" placeholder="${texts[currentLang].newName}" data-file-id="${fileId}">
+                        <button class="action-btn rename-btn" data-file-id="${fileId}">${texts[currentLang].rename}</button>
+                        <button class="action-btn download-btn" data-file-id="${fileId}">${texts[currentLang].download}</button>
+                    </div>
+                `;
+                
+                // Remove welcome card if it exists
+                const welcomeCard = document.querySelector('.summary-card:first-child');
+                if (welcomeCard && welcomeCard.querySelector('.file-type').textContent === 'INFO') {
+                    welcomeCard.remove();
+                }
+                
+                resultsContainer.appendChild(summaryCard);
+                
+                // Add event listeners for the buttons
+                summaryCard.querySelector('.rename-btn').addEventListener('click', function() {
+                    const fileId = this.getAttribute('data-file-id');
+                    const newNameInput = summaryCard.querySelector('.rename-input');
+                    const newName = newNameInput.value.trim();
+                    
+                    if (newName) {
+                        const fileData = processedFiles.get(fileId);
+                        fileData.name = newName;
+                        processedFiles.set(fileId, fileData);
+                        
+                        // Update the displayed name
+                        summaryCard.querySelector('h3').firstChild.textContent = newName;
+                    }
+                });
+                
+                summaryCard.querySelector('.download-btn').addEventListener('click', function() {
+                    const fileId = this.getAttribute('data-file-id');
+                    const fileData = processedFiles.get(fileId);
+                    
+                    if (fileData) {
+                        let blob;
+                        let downloadName = fileData.name;
+                        
+                        // Add file extension if missing
+                        if (!downloadName.includes('.')) {
+                            downloadName += '.' + fileData.type;
+                        }
+                        
+                        if (fileData.type === 'pdf' || fileData.type === 'docx' || fileData.type === 'xlsx' || fileData.type === 'xls') {
+                            // For binary files, use the original file
+                            blob = new Blob([fileData.originalFile], { type: fileData.originalFile.type });
+                        } else {
+                            // For text files, create a new blob
+                            blob = new Blob([fileData.content], { type: 'text/plain' });
+                        }
+                        
+                        // Create download link
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = downloadName;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
